@@ -1,0 +1,46 @@
+{
+  "name": "rsbuild-plugin-rempa",
+  "version": "0.0.1",
+  "repository": "https://github.com/sumy7/rsbuild-plugin-rempa",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "lint": "biome check .",
+    "lint:write": "biome check . --write",
+    "prepare": "npm run build",
+    "test": "playwright test"
+  },
+  "dependencies": {
+    "glob": "^11.0.0"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^1.8.3",
+    "@playwright/test": "^1.46.1",
+    "@rsbuild/core": "^1.0.15",
+    "@types/node": "^20.16.2",
+    "playwright": "^1.46.1",
+    "tsup": "^8.2.4",
+    "typescript": "^5.5.4"
+  },
+  "peerDependencies": {
+    "@rsbuild/core": "1.x || ^1.0.1-beta.0"
+  },
+  "peerDependenciesMeta": {
+    "@rsbuild/core": {
+      "optional": true
+    }
+  }
+}
