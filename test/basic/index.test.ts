@@ -1,13 +1,13 @@
-import { expect, test } from "@playwright/test";
-import { createRsbuild } from "@rsbuild/core";
-import { dirname } from "node:path";
-import { fileURLToPath } from "node:url";
-import { pluginRempa } from "../../src";
-import { getRandomPort } from "../helper";
+import { dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { expect, test } from '@playwright/test';
+import { createRsbuild } from '@rsbuild/core';
+import { pluginRempa } from '../../src';
+import { getRandomPort } from '../helper';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-test("should render page as expected", async ({ page }) => {
+test('should render page as expected', async ({ page }) => {
   const rsbuild = await createRsbuild({
     cwd: __dirname,
     rsbuildConfig: {
@@ -21,12 +21,12 @@ test("should render page as expected", async ({ page }) => {
   const { server, urls } = await rsbuild.startDevServer();
 
   await page.goto(urls[0]);
-  expect(await page.evaluate("window.test")).toBe(1);
+  expect(await page.evaluate('window.test')).toBe(1);
 
   await server.close();
 });
 
-test("should build succeed", async ({ page }) => {
+test('should build succeed', async ({ page }) => {
   const rsbuild = await createRsbuild({
     cwd: __dirname,
     rsbuildConfig: {
@@ -38,7 +38,7 @@ test("should build succeed", async ({ page }) => {
   const { server, urls } = await rsbuild.preview();
 
   await page.goto(urls[0]);
-  expect(await page.evaluate("window.test")).toBe(1);
+  expect(await page.evaluate('window.test')).toBe(1);
 
   await server.close();
 });
