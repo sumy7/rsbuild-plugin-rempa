@@ -1,0 +1,4 @@
+{
+  "title": "Hello World",
+  "layout": "@/layout/Layout.tsx"
+}

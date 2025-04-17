@@ -1,9 +1,16 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import type { RsbuildPlugin, RsbuildPluginAPI } from '@rsbuild/core';
+import {
+  type RsbuildPlugin,
+  type RsbuildPluginAPI,
+  mergeRsbuildConfig,
+} from '@rsbuild/core';
 import { glob } from 'glob';
 
-export type PluginRempaOptions = Record<string, unknown>;
+export type PluginRempaOptions = {
+  template?: string;
+  layout?: string;
+};
 
 interface PageEntry {
   name: string;
@@ -12,10 +19,6 @@ interface PageEntry {
   title: string;
   template: string;
   pageConfig: Record<string, unknown>;
-}
-
-function isFunction(func: unknown): boolean {
-  return !!func && {}.toString.call(func) === '[object Function]';
 }
 
 const DEFAULT_MOUNT_ELEMENT_ID = 'root';
@@ -94,83 +97,68 @@ export const pluginRempa = (
   name: 'plugin-rempa',
 
   async setup(api: RsbuildPluginAPI) {
-    console.log('Hello Rsbuild!', options);
     const tmpPath = path.resolve(
       process.cwd(),
       'node_modules',
       '.cache',
       'rsbuild-plugin-rempa',
     );
-    console.log('tmpPath', tmpPath);
     if (!fs.existsSync(tmpPath)) {
       fs.mkdirSync(tmpPath, { recursive: true });
     }
 
-    const defaultLayoutPath = writeDefaultLayout(tmpPath);
+    const defaultLayoutPath = options.layout ?? writeDefaultLayout(tmpPath);
+    const defaultTemplate = options.template ?? getDefaultTemplate();
 
     const pagesPath = path.resolve(api.context.rootPath, 'src', 'pages');
-    console.log('pagesPath', pagesPath);
     const entries = await collectionEntryInfo(pagesPath);
-    console.log('entries', entries);
 
     for (const entry of entries) {
       entry.layout ??= defaultLayoutPath;
-      console.log(entry.layout);
       const runtimeEntryPath = path.resolve(tmpPath, `${entry.name}.tsx`);
       await writeRuntimeEntryFile(entry, runtimeEntryPath);
     }
 
     api.modifyRsbuildConfig((config) => {
-      config.source = config.source ?? {};
-      config.source.alias = config.source.alias ?? {};
-      // @ts-ignore
-      config.source.alias['@'] = path.resolve(api.context.rootPath, 'src');
-
-      config.source.entry = config.source.entry ?? {};
-      entries.forEach((entry) => {
-        config.source.entry![entry.name] = path.resolve(
-          tmpPath,
-          `${entry.name}.tsx`,
-        );
+      const mergedConfig = mergeRsbuildConfig(config, {
+        resolve: {
+          alias: {
+            '@': path.resolve(api.context.rootPath, 'src'),
+          },
+        },
+        source: {
+          entry: entries.reduce(
+            (acc, entry) => {
+              acc[entry.name] = path.resolve(tmpPath, `${entry.name}.tsx`);
+              return acc;
+            },
+            {} as Record<string, string>,
+          ),
+        },
+        html: {
+          title: ({ entryName, value }) => {
+            const entry = entries.find((entry) => entry.name === entryName);
+            if (entry) {
+              return entry.title ?? 'rsbuild';
+            }
+            return value;
+          },
+          templateParameters: (options) => {
+            const { entryName } = options;
+            const entry = entries.find((entry) => entry.name === entryName);
+            if (entry) {
+              return entry?.pageConfig ?? {};
+            }
+          },
+          template: ({ entryName, value }) => {
+            const entry = entries.find((entry) => entry.name === entryName);
+            if (entry) {
+              return entry.template ?? defaultTemplate;
+            }
+          },
+        },
       });
-
-      config.html = config.html ?? {};
-      const beforeHtmlTitle = config.html.title ?? 'rsbuild';
-      config.html.title = ({ entryName, value }) => {
-        const entry = entries.find((entry) => entry.name === entryName);
-        if (entry) {
-          return entry.title ?? 'rsbuild';
-        } else if (isFunction(beforeHtmlTitle)) {
-          return (beforeHtmlTitle as any)({ entryName, value });
-        } else {
-          return beforeHtmlTitle;
-        }
-      };
-
-      const beforeHtmlTemplateParameters = config.html.template ?? {};
-      config.html.templateParameters = (options) => {
-        const { entryName } = options;
-        const entry = entries.find((entry) => entry.name === entryName);
-        if (entry) {
-          return entry?.pageConfig ?? {};
-        } else if (isFunction(beforeHtmlTemplateParameters)) {
-          return (beforeHtmlTemplateParameters as any)(options);
-        } else {
-          return beforeHtmlTemplateParameters;
-        }
-      };
-
-      const beforeHtmlTemplate = config.html.template ?? getDefaultTemplate();
-      config.html.template = ({ entryName, value }) => {
-        const entry = entries.find((entry) => entry.name === entryName);
-        if (entry) {
-          return entry.template ?? getDefaultTemplate();
-        } else if (isFunction(beforeHtmlTemplate)) {
-          return (beforeHtmlTemplate as any)({ entryName, value });
-        } else {
-          return beforeHtmlTemplate;
-        }
-      };
+      return mergedConfig;
     });
   },
 });
