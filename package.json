@@ -1,6 +1,6 @@
 {
   "name": "rsbuild-plugin-rempa",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "repository": "https://github.com/sumy7/rsbuild-plugin-rempa",
   "license": "MIT",
   "type": "module",
