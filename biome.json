@@ -10,7 +10,8 @@
     "useIgnoreFile": true
   },
   "formatter": {
-    "indentStyle": "space"
+    "indentStyle": "space",
+    "ignore": ["src/compiled/**/*"]
   },
   "javascript": {
     "formatter": {
@@ -26,6 +27,7 @@
     "enabled": true,
     "rules": {
       "recommended": true
-    }
+    },
+    "ignore": ["src/compiled/**/*"]
   }
 }

@@ -13,5 +13,6 @@
     "resolveJsonModule": true,
     "moduleResolution": "Node16"
   },
-  "include": ["src"]
+  "include": ["src"],
+  "exclude": ["src/compiled"]
 }

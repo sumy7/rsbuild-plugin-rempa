@@ -6,6 +6,7 @@ import {
   mergeRsbuildConfig,
 } from '@rsbuild/core';
 import { glob } from 'glob';
+import { isReact18 } from './utils.js';
 
 export type PluginRempaOptions = {
   template?: string;
@@ -80,14 +81,18 @@ async function writeRuntimeEntryFile(
   pageEntry: PageEntry,
   runtimeEntryPath: string,
 ) {
+  const rootElement = `document.getElementById('${pageEntry.pageConfig.mountElementId || DEFAULT_MOUNT_ELEMENT_ID}')`;
+  const renderer = isReact18()
+    ? `ReactDOM.createRoot(${rootElement}).render(<Layout><App /></Layout>);`
+    : `ReactDOM.render(<Layout><App /></Layout>, ${rootElement});`;
+  const reactDOMSource = isReact18() ? 'react-dom/client' : 'react-dom';
+
   const runtimeEntryFile = `// @ts-nocheck
 import React from 'react';
-import ReactDOM from 'react-dom';
+import ReactDOM from '${reactDOMSource}';
 import App from '${pageEntry.entryPath}';
 import Layout from '${pageEntry.layout}';
-ReactDOM.render(<Layout><App /></Layout>, document.getElementById('${
-    pageEntry.pageConfig.mountElementId || DEFAULT_MOUNT_ELEMENT_ID
-  }'));`;
+${renderer}`.trimStart();
   fs.writeFileSync(runtimeEntryPath, runtimeEntryFile);
 }
 
