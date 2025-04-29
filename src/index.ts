@@ -6,21 +6,8 @@ import {
   mergeRsbuildConfig,
 } from '@rsbuild/core';
 import { glob } from 'glob';
+import type { PageEntry, PluginRempaOptions } from './types.js';
 import { isReact18 } from './utils.js';
-
-export type PluginRempaOptions = {
-  template?: string;
-  layout?: string;
-};
-
-interface PageEntry {
-  name: string;
-  entryPath: string;
-  layout: string;
-  title: string;
-  template: string;
-  pageConfig: Record<string, unknown>;
-}
 
 const DEFAULT_MOUNT_ELEMENT_ID = 'root';
 
@@ -65,10 +52,10 @@ async function collectionEntryInfo(pagesPath: string): Promise<PageEntry[]> {
       name,
       entryPath,
       layout: layout,
-      title: title || 'rsbuild',
+      title: title || name,
       template: template ?? getDefaultTemplate(),
       pageConfig: {
-        title: title || 'rsbuild',
+        title: title || name,
         mountElementId: DEFAULT_MOUNT_ELEMENT_ID,
         ...config,
       },
@@ -114,7 +101,9 @@ export const pluginRempa = (
     const defaultLayoutPath = options.layout ?? writeDefaultLayout(tmpPath);
     const defaultTemplate = options.template ?? getDefaultTemplate();
 
-    const pagesPath = path.resolve(api.context.rootPath, 'src', 'pages');
+    const pagesPath = options.pagesPath
+      ? path.resolve(api.context.rootPath, options.pagesPath)
+      : path.resolve(api.context.rootPath, 'src', 'pages');
     const entries = await collectionEntryInfo(pagesPath);
 
     for (const entry of entries) {
@@ -124,12 +113,19 @@ export const pluginRempa = (
     }
 
     api.modifyRsbuildConfig((config) => {
+      const { aliasAtToSrc = true } = options;
+
       const mergedConfig = mergeRsbuildConfig(config, {
-        resolve: {
-          alias: {
-            '@': path.resolve(api.context.rootPath, 'src'),
-          },
-        },
+        // 自动注入 alias
+        ...(aliasAtToSrc
+          ? {
+              resolve: {
+                alias: {
+                  '@': path.resolve(api.context.rootPath, 'src'),
+                },
+              },
+            }
+          : {}),
         source: {
           entry: entries.reduce(
             (acc, entry) => {
@@ -143,7 +139,7 @@ export const pluginRempa = (
           title: ({ entryName, value }) => {
             const entry = entries.find((entry) => entry.name === entryName);
             if (entry) {
-              return entry.title ?? 'rsbuild';
+              return entry.title ?? entry.name;
             }
             return value;
           },

@@ -15,3 +15,27 @@ export interface PageEntry {
   // 传递给 template 的配置
   pageConfig: Record<string, unknown>;
 }
+
+/**
+ * 插件配置
+ */
+export type PluginRempaOptions = {
+  /**
+   * 默认的 template 路径
+   */
+  template?: string;
+  /**
+   * 默认的 layout 路径
+   */
+  layout?: string;
+  /**
+   * 生成 mpa 文件扫描的目录，相对于当前工作目录
+   * @default src/pages
+   */
+  pagesPath?: string;
+  /**
+   * 是否自动注入 alias @ -> src
+   * @default true
+   */
+  aliasAtToSrc?: boolean;
+};
