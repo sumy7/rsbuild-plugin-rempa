@@ -103,10 +103,9 @@ export const pluginRempa = (
 
   async setup(api: RsbuildPluginAPI) {
     const tmpPath = path.resolve(
-      process.cwd(),
-      'node_modules',
-      '.cache',
+      api.context.cachePath,
       'rsbuild-plugin-rempa',
+      `.${api.context.action || 'unknown'}`,
     );
     if (!fs.existsSync(tmpPath)) {
       fs.mkdirSync(tmpPath, { recursive: true });
