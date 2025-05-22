@@ -147,7 +147,13 @@ export const pluginRempa = (
             const { entryName } = options;
             const entry = entries.find((entry) => entry.name === entryName);
             if (entry) {
-              return entry?.pageConfig ?? {};
+              const locals: Record<string, unknown> = {};
+              if (options.locals ?? true) {
+                // @ts-expect-error dynamic localsName
+                locals[options.localsName ?? 'locals'] =
+                  entry?.pageConfig ?? {};
+              }
+              return { ...(entry?.pageConfig ?? {}), ...locals };
             }
           },
           template: ({ entryName, value }) => {

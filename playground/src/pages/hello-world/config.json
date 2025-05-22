@@ -1,4 +1,6 @@
 {
   "title": "Hello World",
-  "layout": "@/layout/Layout.tsx"
+  "layout": "@/layout/Layout.tsx",
+  "template": "src/template/index.html",
+  "injectScript": "<script>console.log('hello')</script>"
 }

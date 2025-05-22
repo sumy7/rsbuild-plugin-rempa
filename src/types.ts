@@ -38,4 +38,12 @@ export type PluginRempaOptions = {
    * @default true
    */
   aliasAtToSrc?: boolean;
+  /**
+   * 是否注入 locals
+   */
+  locals?: boolean;
+  /**
+   * 注入的 locals 名称
+   */
+  localsName?: string;
 };
