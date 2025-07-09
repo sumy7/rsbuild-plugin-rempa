@@ -4,8 +4,6 @@
 
 A Rsbuild plugin designed to collect pages and generate a Multi-Page Application (MPA).
 
-**Note: This plugin is currently under development, and its API may be subject to change.**
-
 ## Installation
 
 Install the plugin via npm:
@@ -29,10 +27,35 @@ export default defineConfig({
 });
 ```
 
+You can also configure the plugin with options:
+
+```typescript
+// rsbuild.config.ts
+import { defineConfig } from '@rsbuild/core';
+import { pluginReact } from '@rsbuild/plugin-react';
+import { pluginRempa } from 'rsbuild-plugin-rempa';
+
+export default defineConfig({
+  plugins: [
+    pluginReact(), 
+    pluginRempa({
+      pagesPath: 'src/pages',
+      aliasAtToSrc: true,
+      locals: true,
+      localsName: 'pageData'
+    })
+  ],
+});
+```
+
 ### Plugin Options
 
 - `template` (string): Specifies the HTML template file to use for the generated pages. Defaults to the Rsbuild default template.
 - `layout` (string): Defines the default layout path for the entry page. Defaults to `<>{children}</>`.
+- `pagesPath` (string): Directory to scan for generating MPA files, relative to the current working directory. Defaults to `src/pages`.
+- `aliasAtToSrc` (boolean): Whether to automatically inject alias `@` -> `src`. Defaults to `true`.
+- `locals` (boolean): Whether to inject locals into template parameters.
+- `localsName` (string): Name of the injected locals variable.
 
 ### Auto-Generated MPA
 
