@@ -65,4 +65,8 @@ lib-cov
 node_modules
 temp
 
+# lock files and test artifacts
+package-lock.json
+test-results/
+
 *storybook.log
