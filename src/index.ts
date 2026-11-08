@@ -156,7 +156,7 @@ export const pluginRempa = (
               return { ...(entry?.pageConfig ?? {}), ...locals };
             }
           },
-          template: ({ entryName, value }) => {
+          template: ({ entryName }) => {
             const entry = entries.find((entry) => entry.name === entryName);
             if (entry) {
               return entry.template ?? defaultTemplate;
