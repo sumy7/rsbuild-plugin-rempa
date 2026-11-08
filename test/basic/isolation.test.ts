@@ -16,7 +16,12 @@ const cacheRoot = resolve(
 
 async function createFixture() {
   await mkdir(cacheRoot, { recursive: true });
-  return mkdtemp(join(cacheRoot, 'isolation-'));
+  const root = await mkdtemp(join(cacheRoot, 'isolation-'));
+  await writeFile(
+    join(root, 'package.json'),
+    JSON.stringify({ dependencies: { react: '*' } }),
+  );
+  return root;
 }
 
 async function createPage(
@@ -167,3 +172,29 @@ test('an empty project with no options does not create an entry', async () => {
     await rm(root, { recursive: true, force: true });
   }
 });
+
+for (const framework of ['react', 'vue'] as const) {
+  test(`rejects conflicting root and index pages for ${framework}`, async () => {
+    const root = await createFixture();
+    try {
+      const pages = join(root, 'src/pages');
+      await mkdir(join(pages, 'index'), { recursive: true });
+      const configs = [
+        join(pages, 'config.json'),
+        join(pages, 'index/config.json'),
+      ];
+      for (const config of configs) {
+        await writeFile(config, '{}');
+      }
+      const configuring = configure(pluginRempa({ framework }), root);
+      await expect(configuring).rejects.toThrow(
+        /Duplicate page output "index\.html"/,
+      );
+      for (const config of configs) {
+        await expect(configuring).rejects.toThrow(config);
+      }
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+}

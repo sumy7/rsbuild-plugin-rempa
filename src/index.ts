@@ -7,7 +7,7 @@ import {
 } from '@rsbuild/core';
 import { glob } from 'glob';
 import type { PageEntry, PluginRempaOptions } from './types.js';
-import { isReact18 } from './utils.js';
+import { isReact18, resolveFramework } from './utils.js';
 
 const DEFAULT_MOUNT_ELEMENT_ID = 'root';
 
@@ -40,14 +40,29 @@ export default DefaultLayout;
 async function collectionEntryInfo(
   pagesPath: string,
   defaultTemplate: string,
+  framework: 'react' | 'vue',
 ): Promise<PageEntry[]> {
   const entries: PageEntry[] = [];
+  const pageConfigs = new Map<string, string>();
   // 查找目录下所有的 config.json 文件
   const files = await glob('**/config.json', { cwd: pagesPath });
   for (const file of files) {
-    const name = file.replace(/\/config\.json$/, '');
+    const directory = path.dirname(file);
+    const name =
+      directory === '.' ? 'index' : directory.split(path.sep).join('/');
     const pagePath = path.resolve(pagesPath, file);
-    const entryPath = path.resolve(pagesPath, name, 'index.tsx');
+    const previousConfig = pageConfigs.get(name);
+    if (previousConfig) {
+      throw new Error(
+        `[rsbuild-plugin-rempa] Duplicate page output "${name}.html": ${previousConfig} and ${pagePath}`,
+      );
+    }
+    pageConfigs.set(name, pagePath);
+    const entryPath = path.resolve(
+      pagesPath,
+      directory,
+      framework === 'vue' ? 'index.vue' : 'index.tsx',
+    );
     const { layout, title, template, ...config } = JSON.parse(
       fs.readFileSync(pagePath, 'utf-8'),
     );
@@ -71,7 +86,19 @@ async function writeRuntimeEntryFile(
   pageEntry: PageEntry,
   runtimeEntryPath: string,
   rootPath: string,
+  framework: 'react' | 'vue',
 ) {
+  if (framework === 'vue') {
+    const runtimeEntryFile = `import { createApp, h } from 'vue';
+import App from ${JSON.stringify(pageEntry.entryPath)};
+${pageEntry.layout ? `import Layout from ${JSON.stringify(pageEntry.layout)};` : ''}
+const element = document.getElementById(${JSON.stringify(pageEntry.pageConfig.mountElementId || DEFAULT_MOUNT_ELEMENT_ID)});
+if (!element) throw new Error(${JSON.stringify(`[rsbuild-plugin-rempa] Missing mount element for page ${pageEntry.name}`)});
+${pageEntry.layout ? 'createApp({ render: () => h(Layout, null, { default: () => h(App) }) }).mount(element);' : 'createApp(App).mount(element);'}
+`;
+    fs.writeFileSync(runtimeEntryPath, runtimeEntryFile);
+    return;
+  }
   const rootElement = `document.getElementById('${pageEntry.pageConfig.mountElementId || DEFAULT_MOUNT_ELEMENT_ID}')`;
   const useCreateRoot = isReact18(rootPath);
   const renderer = useCreateRoot
@@ -102,22 +129,35 @@ export const pluginRempa = (
     fs.mkdirSync(cachePath, { recursive: true });
     const tmpPath = fs.mkdtempSync(path.join(cachePath, 'instance-'));
 
-    const defaultLayoutPath = options.layout ?? writeDefaultLayout(tmpPath);
+    const framework = resolveFramework(api.context.rootPath, options.framework);
+    const runtimeExtension = framework === 'vue' ? '.js' : '.tsx';
+    const defaultLayoutPath =
+      options.layout ??
+      (framework === 'react' ? writeDefaultLayout(tmpPath) : '');
     const defaultTemplate =
       options.template ?? getDefaultTemplate(api.context.rootPath);
 
     const pagesPath = options.pagesPath
       ? path.resolve(api.context.rootPath, options.pagesPath)
       : path.resolve(api.context.rootPath, 'src', 'pages');
-    const entries = await collectionEntryInfo(pagesPath, defaultTemplate);
+    const entries = await collectionEntryInfo(
+      pagesPath,
+      defaultTemplate,
+      framework,
+    );
 
     for (const entry of entries) {
       entry.layout ??= defaultLayoutPath;
-      const runtimeEntryPath = path.resolve(tmpPath, `${entry.name}.tsx`);
+      const runtimeEntryPath = path.resolve(
+        tmpPath,
+        `${entry.name}${runtimeExtension}`,
+      );
+      fs.mkdirSync(path.dirname(runtimeEntryPath), { recursive: true });
       await writeRuntimeEntryFile(
         entry,
         runtimeEntryPath,
         api.context.rootPath,
+        framework,
       );
     }
 
@@ -138,7 +178,10 @@ export const pluginRempa = (
         source: {
           entry: entries.reduce(
             (acc, entry) => {
-              acc[entry.name] = path.resolve(tmpPath, `${entry.name}.tsx`);
+              acc[entry.name] = path.resolve(
+                tmpPath,
+                `${entry.name}${runtimeExtension}`,
+              );
               return acc;
             },
             {} as Record<string, string>,

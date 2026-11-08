@@ -20,6 +20,8 @@ export interface PageEntry {
  * 插件配置
  */
 export type PluginRempaOptions = {
+  /** 页面框架，默认根据应用的 React/Vue 依赖自动选择。显式配置优先。 */
+  framework?: 'react' | 'vue';
   /**
    * 默认的 template 路径
    */
