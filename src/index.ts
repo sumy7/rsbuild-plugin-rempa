@@ -11,9 +11,9 @@ import { isReact18 } from './utils.js';
 
 const DEFAULT_MOUNT_ELEMENT_ID = 'root';
 
-function getDefaultTemplate(): string {
-  const defaultTemplate1 = path.resolve(process.cwd(), 'index.html');
-  const defaultTemplate2 = path.resolve(process.cwd(), 'public/index.html');
+function getDefaultTemplate(rootPath: string): string {
+  const defaultTemplate1 = path.resolve(rootPath, 'index.html');
+  const defaultTemplate2 = path.resolve(rootPath, 'public/index.html');
   if (fs.existsSync(defaultTemplate1)) {
     return defaultTemplate1;
   }
@@ -37,7 +37,10 @@ export default DefaultLayout;
   return defaultLayoutPath;
 }
 
-async function collectionEntryInfo(pagesPath: string): Promise<PageEntry[]> {
+async function collectionEntryInfo(
+  pagesPath: string,
+  defaultTemplate: string,
+): Promise<PageEntry[]> {
   const entries: PageEntry[] = [];
   // 查找目录下所有的 config.json 文件
   const files = await glob('**/config.json', { cwd: pagesPath });
@@ -53,7 +56,7 @@ async function collectionEntryInfo(pagesPath: string): Promise<PageEntry[]> {
       entryPath,
       layout: layout,
       title: title || name,
-      template: template ?? getDefaultTemplate(),
+      template: template ?? defaultTemplate,
       pageConfig: {
         title: title || name,
         mountElementId: DEFAULT_MOUNT_ELEMENT_ID,
@@ -67,12 +70,14 @@ async function collectionEntryInfo(pagesPath: string): Promise<PageEntry[]> {
 async function writeRuntimeEntryFile(
   pageEntry: PageEntry,
   runtimeEntryPath: string,
+  rootPath: string,
 ) {
   const rootElement = `document.getElementById('${pageEntry.pageConfig.mountElementId || DEFAULT_MOUNT_ELEMENT_ID}')`;
-  const renderer = isReact18()
+  const useCreateRoot = isReact18(rootPath);
+  const renderer = useCreateRoot
     ? `ReactDOM.createRoot(${rootElement}).render(<Layout><App /></Layout>);`
     : `ReactDOM.render(<Layout><App /></Layout>, ${rootElement});`;
-  const reactDOMSource = isReact18() ? 'react-dom/client' : 'react-dom';
+  const reactDOMSource = useCreateRoot ? 'react-dom/client' : 'react-dom';
 
   const runtimeEntryFile = `// @ts-nocheck
 import React from 'react';
@@ -89,27 +94,31 @@ export const pluginRempa = (
   name: 'plugin-rempa',
 
   async setup(api: RsbuildPluginAPI) {
-    const tmpPath = path.resolve(
+    const cachePath = path.resolve(
       api.context.cachePath,
       'rsbuild-plugin-rempa',
       `.${api.context.action || 'unknown'}`,
     );
-    if (!fs.existsSync(tmpPath)) {
-      fs.mkdirSync(tmpPath, { recursive: true });
-    }
+    fs.mkdirSync(cachePath, { recursive: true });
+    const tmpPath = fs.mkdtempSync(path.join(cachePath, 'instance-'));
 
     const defaultLayoutPath = options.layout ?? writeDefaultLayout(tmpPath);
-    const defaultTemplate = options.template ?? getDefaultTemplate();
+    const defaultTemplate =
+      options.template ?? getDefaultTemplate(api.context.rootPath);
 
     const pagesPath = options.pagesPath
       ? path.resolve(api.context.rootPath, options.pagesPath)
       : path.resolve(api.context.rootPath, 'src', 'pages');
-    const entries = await collectionEntryInfo(pagesPath);
+    const entries = await collectionEntryInfo(pagesPath, defaultTemplate);
 
     for (const entry of entries) {
       entry.layout ??= defaultLayoutPath;
       const runtimeEntryPath = path.resolve(tmpPath, `${entry.name}.tsx`);
-      await writeRuntimeEntryFile(entry, runtimeEntryPath);
+      await writeRuntimeEntryFile(
+        entry,
+        runtimeEntryPath,
+        api.context.rootPath,
+      );
     }
 
     api.modifyRsbuildConfig((config) => {
